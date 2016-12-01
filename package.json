@@ -1,0 +1,24 @@
+{
+  "name": "discrimen",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Sanjay Guruprasad <sanjay@softrade.in> (http://sanjaypojo.com/)",
+  "license": "MIT",
+  "dependencies": {
+    "cjsx-loader": "^3.0.0",
+    "coffee-loader": "^0.7.2",
+    "coffee-script": "^1.11.1",
+    "radium": "^0.18.1",
+    "react": "^15.3.2",
+    "react-addons-update": "^15.3.2",
+    "react-dom": "^15.3.2",
+    "react-router": "^3.0.0",
+    "superagent": "^2.3.0",
+    "tinycolor2": "^1.4.1",
+    "webpack": "^1.13.2"
+  }
+}
