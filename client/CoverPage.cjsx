@@ -35,6 +35,8 @@ CoverPage = React.createClass
           algorithms:
             status: "READY"
             list: response.body
+            chosenKey: ""
+            chosenAlgorithm: {}
 
   changeAlgorithm: (e) ->
     e.preventDefault()
@@ -46,24 +48,31 @@ CoverPage = React.createClass
         chosenKey: {$set: e.target.value}
         chosenAlgorithm: {$set: chosenAlgorithm[0]}
       )
+      analysis:
+        status: "LOADING"
+        data: []
 
   fetchAnalysis: () ->
     @setState
       analysis: update(@state.algorithms, status: {$set: "LOADING"})
 
-    request.get "/api/algorithms/1"
+    request.get "/api/algorithms/#{@state.algorithms.chosenAlgorithm.id}"
       .set "Cache-Control", "max-age=0,no-cache,no-store,post-check=0,pre-check=0"
       .end (err, response) =>
-        charts = []
-        for chart in response.body
-          charts.push JSON.parse(chart)
+        if err
+          console.log err
+        else
+          console.log response.body
+          charts = []
+          for chart in response.body
+            charts.push JSON.parse(chart)
 
-        @setState
-          analysis:
-            status: "READY"
-            data: charts
+          @setState
+            analysis:
+              status: "READY"
+              data: charts
 
-        @setState showSchema: false
+          @setState showSchema: false
 
   componentDidMount: () ->
     @fetchAlgorithms()
@@ -112,11 +121,11 @@ CoverPage = React.createClass
       schemaContainer:
         padding: "1rem 0rem"
       schemaBlock:
-        width: "400px"
+        width: "700px"
         margin: "0px auto"
         padding: "0px 20px"
-        fontSize: "10px"
-        lineHeight: "12px"
+        fontSize: "16px"
+        lineHeight: "24px"
         fontFamily: "Courier, monospace"
         whiteSpace: "pre-wrap"
         display: "block"
@@ -137,13 +146,15 @@ CoverPage = React.createClass
 
     if @state.algorithms.chosenKey isnt "" && @state.showSchema
       schemaBlock =
-        <pre style={style.schemaBlock} className="cf">
-          {JSON.stringify(@state.algorithms.chosenAlgorithm?.schema, null, 2)}
-        </pre>
+        <div style={style.schemaContainer}>
+          <pre style={style.schemaBlock} className="cf">
+            {JSON.stringify(@state.algorithms.chosenAlgorithm?.schema, null, 2)}
+          </pre>
+        </div>
 
     if @state.analysis.status is "READY"
       barCharts = []
-      for comparison in @state.analysis.data
+      for comparison, idx in @state.analysis.data
         index = 0
         xAxis = null
         datasets = []
@@ -174,7 +185,7 @@ CoverPage = React.createClass
             yAxes: [
               scaleLabel:
                 display: true
-                labelString: 'Insurance Premium (USD)'
+                labelString: @state.algorithms?.chosenAlgorithm?.output
             ]
             xAxes: [
               scaleLabel:
@@ -183,7 +194,7 @@ CoverPage = React.createClass
             ]
 
         barCharts.push(
-          <div style={{padding: "30px 0px"}}>
+          <div style={{padding: "30px 0px"}} key={idx}>
             <Chart.Bar data={barData} width={300} height={100} options={barOptions} />
           </div>
         )
@@ -202,9 +213,7 @@ CoverPage = React.createClass
             analyze
           </button>
         </div>
-        <div style={style.schemaContainer}>
-          {schemaBlock}
-        </div>
+        {schemaBlock}
       </div>
       <div style={style.bodyContainer}>
         <div style={style.analysisContainer}>
@@ -212,8 +221,6 @@ CoverPage = React.createClass
         </div>
       </div>
     </div>
-
-
 
 
 module.exports = Radium(CoverPage)

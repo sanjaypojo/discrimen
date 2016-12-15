@@ -10,7 +10,7 @@ import itertools
 app = Flask(__name__)
 
 
-def ageist_pricer(model_input):
+def insurance_pricer(model_input):
     if model_input['age'] > 50 and model_input['age'] < 55 and model_input['gender'] == "f":
         return 2449 * (1 + (0.01 * random.randint(-10, 10)))
     elif model_input['age'] > 20 and model_input['age'] < 25 and model_input['gender'] == "m":
@@ -18,13 +18,28 @@ def ageist_pricer(model_input):
     else:
         return 2399 * (1 + (0.01 * random.randint(-10, 10)))
 
+
+def danger_predictor(model_input):
+    base_score = model_input['prior_offenses_class_1'] / 10
+    base_score += model_input['prior_offenses_class_2'] / 100
+    base_score += 25 / model_input['age']
+    prediction = random.randint(math.floor(base_score),10)
+    if model_input['age'] < 30 and model_input['race'] == "y":
+        return min(prediction + 1, 10)
+    elif (model_input['prior_offenses_class_3'] > 45 or model_input['prior_offenses_class_2'] > 40) and model_input['race'] == "z":
+        return min(prediction + 1, 10)
+    else:
+        return prediction
+
+
 algorithm_list = [
     {
         'id': '1',
         'name': 'Insurance Pricer',
-        'model': ageist_pricer,
+        'model': insurance_pricer,
         'type': 'continuous',
         'output': 'Insurance Premium (USD)',
+        'sensitive_field': 'gender',
         'schema': [
             {
                 'name': 'gender',
@@ -34,23 +49,65 @@ algorithm_list = [
             {
                 'name': 'age',
                 'type': 'continuous',
-                'is_integer': False,
                 'min': 12,
                 'max': 98,
             },
             {
                 'name': 'hospital_visits',
                 'type': 'continuous',
-                'is_integer': True,
                 'min': 0,
                 'max': 100,
             },
             {
-                'name': 'health_avg_calorie',
+                'name': 'daily_calorie_avg',
                 'type': 'continuous',
-                'is_integer': False,
                 'min': 0,
                 'max': 1000,
+            },
+            {
+                'name': 'no_claim_rate',
+                'type': 'continuous',
+                'min': 0,
+                'max': 1,
+            }
+        ],
+    },
+    {
+        'id': '2',
+        'name': 'Redicivism Predictor',
+        'model': danger_predictor,
+        'type': 'continuous',
+        'output': 'Risk Level',
+        'sensitive_field': 'race',
+        'schema': [
+            {
+                'name': 'race',
+                'type': 'discrete',
+                'options': ['w', 'x', 'y', 'z'],
+            },
+            {
+                'name': 'prior_offenses_class_1',
+                'type': 'continuous',
+                'min': 0,
+                'max': 50,
+            },
+            {
+                'name': 'prior_offenses_class_2',
+                'type': 'continuous',
+                'min': 0,
+                'max': 50,
+            },
+            {
+                'name': 'prior_offenses_class_3',
+                'type': 'continuous',
+                'min': 0,
+                'max': 50,
+            },
+            {
+                'name': 'age',
+                'type': 'continuous',
+                'min': 18,
+                'max': 95,
             }
         ],
     }
@@ -64,9 +121,10 @@ def get_algorithm(algo_id):
     return None
 
 
-def analyze_algorithm(algo_id, sensitive_field_name):
+def analyze_algorithm(algo_id):
     # Get the chosen algorithm
     chosen_algorithm = get_algorithm(algo_id)
+    sensitive_field_name = chosen_algorithm['sensitive_field']
     if chosen_algorithm is None:
         return {'err': True, 'result': None, 'error_message': 'Invalid algorithm ID'}
 
@@ -84,7 +142,7 @@ def analyze_algorithm(algo_id, sensitive_field_name):
 
     # Generate samples for each dimension independently
     samples = []
-    num_of_samples = 40
+    num_of_samples = 30
     for input_field in other_fields:
         if input_field['type'] == 'continuous':
             samples.append(
@@ -128,7 +186,7 @@ def bin_results(df, other_fields, output_fields):
         field_list.extend(output_fields)
         print(field_list)
         binned_df = df[field_list].copy()
-        bins = np.linspace(field['min'], field['max'], 30)
+        bins = np.linspace(field['min'], field['max'], 20)
         binned_df[field['name'] + '_bins'] = pd.cut(binned_df[field['name']], bins)
         binned_df = binned_df.groupby([field['name'] + '_bins']).mean()
         binned_results.append(binned_df.to_json())
@@ -153,7 +211,8 @@ def api_list_algorithms():
             {
                 'id': item['id'],
                 'name': item['name'],
-                'schema': item['schema']
+                'schema': item['schema'],
+                'output': item['output']
             }
         )
     return jsonify(algorithms_json)
@@ -161,7 +220,7 @@ def api_list_algorithms():
 
 @app.route('/api/algorithms/<int:algo_id>')
 def api_analyze_algorithm(algo_id):
-    analysis = analyze_algorithm(algo_id, 'gender')
+    analysis = analyze_algorithm(algo_id)
 
     if analysis['err']:
         return jsonify(analysis)
