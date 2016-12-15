@@ -1,35 +1,37 @@
 tinyColor = require "tinycolor2"
 
-lighten = (colorString, percent) ->
+lighten = (colorString, percent=5) ->
   tinyColor(colorString).lighten(percent).toString()
 
-darken = (colorString, percent) ->
+darken = (colorString, percent=5) ->
   tinyColor(colorString).darken(percent).toString()
 
-brighten = (colorString, percent) ->
+brighten = (colorString, percent=5) ->
   tinyColor(colorString).brighten(percent).toString()
 
 palette =
   black: "#383E40"
   white: "#f1f1f1"
-  purple: "#4a4090"
+  red: "#c0392b"
 
 module.exports =
-  navBg: darken palette.purple, 8
-  navFg: palette.white
-  mainFg: palette.black
   mainBg: palette.white
-  dropzoneBg: palette.purple
-  dropzoneFg: palette.white
-  buttonBg: palette.purple
+  bodyBg: palette.black
+  chartFg: darken(palette.white, 20)
   buttonFg: palette.white
-  tableHeadings: palette.white
-  tableBody: palette.black
-  tableHeaderBg: darken palette.purple, 20
-  tableBorder: palette.black
-  types: palette.purple
-  coverHeading: palette.white
-  coverButtonFg: palette.white
-  coverButtonBg: palette.purple
-  coverButtonBgHover: lighten palette.purple, 10
-  coverButtonSeparator: darken palette.purple, 8
+  buttonBg: palette.red
+  buttonBgHover: darken palette.red
+  barBg: [
+    "rgba(31, 138, 112, 0.7)"
+    "rgba(190, 219, 57, 0.7)"
+    "rgba(0, 67, 88, 0.7)"
+    "rgba(255, 225, 26, 0.7)"
+    "rgba(253, 116, 0, 0.7)"
+  ]
+  barBorders: [
+    "rgba(31, 138, 112, 1)"
+    "rgba(190, 219, 57, 1)"
+    "rgba(0, 67, 88, 1)"
+    "rgba(255, 225, 26, 1)"
+    "rgba(253, 116, 0, 1)"
+  ]

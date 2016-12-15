@@ -8,6 +8,8 @@ Chart = require "react-chartjs-2"
 
 Link = Radium(reactRouter.Link)
 
+Chart.defaults.global.defaultFontColor = colors.chartFg
+
 CoverPage = React.createClass
   displayName: "CoverPage"
 
@@ -52,13 +54,16 @@ CoverPage = React.createClass
     request.get "/api/algorithms/1"
       .set "Cache-Control", "max-age=0,no-cache,no-store,post-check=0,pre-check=0"
       .end (err, response) =>
-        console.log JSON.parse(response.body)
-        # @setState
-        #   analysis:
-        #     status: "READY"
-        #     data: response.body
-        #
-        # @setState showSchema: false
+        charts = []
+        for chart in response.body
+          charts.push JSON.parse(chart)
+
+        @setState
+          analysis:
+            status: "READY"
+            data: charts
+
+        @setState showSchema: false
 
   componentDidMount: () ->
     @fetchAlgorithms()
@@ -67,7 +72,14 @@ CoverPage = React.createClass
     style =
       heading:
         textAlign: "center"
+      headerContainer:
+        margin: "0px auto"
+        width: "90%"
+        maxWidth: "760px"
       bodyContainer:
+        backgroundColor: colors.bodyBg
+        width: "100%"
+      analysisContainer:
         margin: "0px auto"
         width: "90%"
         maxWidth: "760px"
@@ -84,11 +96,11 @@ CoverPage = React.createClass
       button:
         margin: "0px 10px"
         display: "inline-block"
-        backgroundColor: "#c0392b"
+        backgroundColor: colors.buttonBg
         width: "250px"
         height: "60px"
         lineHeight: "60px"
-        color: "#fff"
+        color: colors.buttonFg
         cursor: "pointer"
         overflow: "hidden"
         borderRadius: "5px"
@@ -96,7 +108,7 @@ CoverPage = React.createClass
         boxShadow: "0 0 20px 0 rgba(0, 0, 0, 0.3)"
         fontSize: "18px"
         ":hover":
-          backgroundColor: "#a53125"
+          backgroundColor: colors.buttonBgHover
       schemaContainer:
         padding: "1rem 0rem"
       schemaBlock:
@@ -130,21 +142,55 @@ CoverPage = React.createClass
         </pre>
 
     if @state.analysis.status is "READY"
-      options =
-        scales:
-          yAxes: [
-            ticks:
-              max: 600
-              min: 0
-              stepSize: 100
-          ]
-      barChart = <Chart.Bar
-        data={@state.analysis.data} width={300} height={100}
-        options={options}/>
+      barCharts = []
+      for comparison in @state.analysis.data
+        index = 0
+        xAxis = null
+        datasets = []
+        for seriesKey, series of comparison
+          index += 1
+          if index is 1
+            xAxis =
+              name: seriesKey
+              data: Object.values(series).map (e) -> Math.round(e)
+          else
+            datasets.push {
+              name: seriesKey
+              data: Object.values(series)
+            }
+        barData =
+          labels: xAxis.data
+          datasets: for item, i in datasets
+            {
+              label: item.name
+              backgroundColor: colors.barBg[i%5]
+              borderColor: colors.barBorders[i%5]
+              borderWidth: 1
+              data: item.data
+            }
+
+        barOptions =
+          scales:
+            yAxes: [
+              scaleLabel:
+                display: true
+                labelString: 'Insurance Premium (USD)'
+            ]
+            xAxes: [
+              scaleLabel:
+                display: true
+                labelString: xAxis.name
+            ]
+
+        barCharts.push(
+          <div style={{padding: "30px 0px"}}>
+            <Chart.Bar data={barData} width={300} height={100} options={barOptions} />
+          </div>
+        )
 
     <div>
-      <h4 style={style.heading}> discrimen </h4>
-      <div style={style.bodyContainer}>
+      <h4 style={style.heading}> Bias Detector </h4>
+      <div style={style.headerContainer}>
         <div style={style.headerBar}>
           <select style={style.select} className="element"
             value={@state.chosenKey} onChange={@changeAlgorithm}>
@@ -159,11 +205,15 @@ CoverPage = React.createClass
         <div style={style.schemaContainer}>
           {schemaBlock}
         </div>
+      </div>
+      <div style={style.bodyContainer}>
         <div style={style.analysisContainer}>
-          {barChart}
+          {barCharts}
         </div>
       </div>
     </div>
+
+
 
 
 module.exports = Radium(CoverPage)

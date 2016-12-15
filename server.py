@@ -11,17 +11,20 @@ app = Flask(__name__)
 
 
 def ageist_pricer(model_input):
-    if model_input['age'] > 50 and model_input['age'] < 60 and model_input['gender'] == "f":
-        return 2499*(1 + (0.01*random.randint(-10,10)))
+    if model_input['age'] > 50 and model_input['age'] < 55 and model_input['gender'] == "f":
+        return 2449 * (1 + (0.01 * random.randint(-10, 10)))
+    elif model_input['age'] > 20 and model_input['age'] < 25 and model_input['gender'] == "m":
+        return 2449 * (1 + (0.01 * random.randint(-10, 10)))
     else:
-        return 2399*(1 + (0.01*random.randint(-10,10)))
+        return 2399 * (1 + (0.01 * random.randint(-10, 10)))
 
 algorithm_list = [
     {
         'id': '1',
-        'name': 'Textbook Pricer',
+        'name': 'Insurance Pricer',
         'model': ageist_pricer,
         'type': 'continuous',
+        'output': 'Insurance Premium (USD)',
         'schema': [
             {
                 'name': 'gender',
@@ -36,18 +39,18 @@ algorithm_list = [
                 'max': 98,
             },
             {
-                'name': 'buys_per_month',
+                'name': 'hospital_visits',
                 'type': 'continuous',
                 'is_integer': True,
                 'min': 0,
-                'max': 235,
+                'max': 100,
             },
             {
-                'name': 'spend_per_month',
+                'name': 'health_avg_calorie',
                 'type': 'continuous',
                 'is_integer': False,
                 'min': 0,
-                'max': 35000,
+                'max': 1000,
             }
         ],
     }
@@ -81,7 +84,7 @@ def analyze_algorithm(algo_id, sensitive_field_name):
 
     # Generate samples for each dimension independently
     samples = []
-    num_of_samples = 10 ^ int(math.ceil(9 / len(other_fields)))
+    num_of_samples = 40
     for input_field in other_fields:
         if input_field['type'] == 'continuous':
             samples.append(
@@ -110,7 +113,26 @@ def analyze_algorithm(algo_id, sensitive_field_name):
     # DataFrame contains all generated inputs
     # and output sets for each class of the sensitive_field
     df = pd.DataFrame(rows)
-    return {'err': False, 'result': df}
+
+    # Construct individual frames of output vs each variable
+    output_fields = ['output_' + sf for sf in sensitive_field['options']]
+    binned_results = bin_results(df, other_fields, output_fields)
+
+    return {'err': False, 'result': df, 'binned_results': binned_results}
+
+
+def bin_results(df, other_fields, output_fields):
+    binned_results = []
+    for field in other_fields:
+        field_list = [field['name']]
+        field_list.extend(output_fields)
+        print(field_list)
+        binned_df = df[field_list].copy()
+        bins = np.linspace(field['min'], field['max'], 30)
+        binned_df[field['name'] + '_bins'] = pd.cut(binned_df[field['name']], bins)
+        binned_df = binned_df.groupby([field['name'] + '_bins']).mean()
+        binned_results.append(binned_df.to_json())
+    return binned_results
 
 
 @app.route('/app.js')
@@ -139,14 +161,13 @@ def api_list_algorithms():
 
 @app.route('/api/algorithms/<int:algo_id>')
 def api_analyze_algorithm(algo_id):
-    print(algo_id)
     analysis = analyze_algorithm(algo_id, 'gender')
 
     if analysis['err']:
         return jsonify(analysis)
     else:
         return jsonify(
-            analysis['result'].describe().to_json()
+            analysis['binned_results']
         )
 
 
