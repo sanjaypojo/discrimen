@@ -74,7 +74,7 @@ algorithm_list = [
     },
     {
         'id': '2',
-        'name': 'Redicivism Predictor',
+        'name': 'Recidivism Predictor',
         'model': danger_predictor,
         'type': 'continuous',
         'output': 'Risk Level',
